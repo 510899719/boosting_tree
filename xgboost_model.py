@@ -6,7 +6,7 @@ import copy
 n_estimators =10#树的棵数
 MAX_DEPTH = 2
 LR = 0.3
-min_child_weight = 1 # 最小叶子节点占比权重
+min_child_weight = 0 # 最小叶子节点占比权重
 base_score = 0.5
 
 
@@ -39,8 +39,6 @@ class XGBoostRegression:
             self.base_score = np.log(base_score / (1 - base_score))
 
     def calc_G(self,pred,y):
-        if self.target.startswith('reg'):
-            return np.sum(pred - y)
         return np.sum(pred - y)
 
     def calc_H(self,pred):
@@ -221,7 +219,6 @@ print("my xgb tree:",my_xgb_tree.predict(data[0,:-1]))
 print(xgb.feature_importances_)
 print(my_xgb_tree.feat_importance())
 
-print(my_xgb_tree.gain_list)
 
 print('----------------classify test---------------------')
 data = np.array([[1,-5,0],
@@ -248,5 +245,3 @@ print("my xgb tree:",my_xgb_tree.predict(data[0,:-1]))
 
 print('xgboost feature importance',xgb.feature_importances_)
 print(my_xgb_tree.feat_importance())
-
-
