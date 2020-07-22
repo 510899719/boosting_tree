@@ -13,7 +13,7 @@ base_score = 0.5
 # 回归：G = ypred - y,H = 1
 # 分类：G = ypred - y,H = ypred * (1 - ypred)
 
-class XGBoostRegression:
+class XGBoostModel:
     def __init__(self,target,n_estimators,lr,max_depth,min_child_weight,reg_lambda,reg_alpha,base_score):
         '''
         :param target: reg if target is a regression else classify
@@ -211,7 +211,7 @@ xgb = XGBRegressor(n_estimators=n_estimators,learning_rate=LR,max_depth=MAX_DEPT
 xgb.fit(data[:,:-1],data[:,-1])
 print("xgboost:",xgb.predict(data[0,:-1].reshape(1,-1)))
 
-my_xgb_tree = XGBoostRegression(target='regression',n_estimators=n_estimators,lr=LR,max_depth=MAX_DEPTH,
+my_xgb_tree = XGBoostModel(target='regression',n_estimators=n_estimators,lr=LR,max_depth=MAX_DEPTH,
                                 min_child_weight=min_child_weight,reg_lambda=1,reg_alpha=0,base_score=base_score)
 my_xgb_tree.fit(data)
 print("my xgb tree:",my_xgb_tree.predict(data[0,:-1]))
@@ -238,10 +238,12 @@ xgb = XGBClassifier(n_estimators=n_estimators,learning_rate=LR,max_depth=MAX_DEP
 xgb.fit(data[:,:-1],data[:,-1])
 print("xgboost:",xgb.predict_proba(data[0,:-1].reshape(1,-1)))
 
-my_xgb_tree = XGBoostRegression(target='classify',n_estimators=n_estimators,lr=LR,max_depth=MAX_DEPTH,
+my_xgb_tree = XGBoostModel(target='classify',n_estimators=n_estimators,lr=LR,max_depth=MAX_DEPTH,
                                 min_child_weight=min_child_weight,reg_lambda=1,reg_alpha=0,base_score=base_score)
 my_xgb_tree.fit(data)
 print("my xgb tree:",my_xgb_tree.predict(data[0,:-1]))
 
 print('xgboost feature importance',xgb.feature_importances_)
 print(my_xgb_tree.feat_importance())
+
+
