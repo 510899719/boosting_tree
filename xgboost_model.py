@@ -6,15 +6,16 @@ import copy
 n_estimators =10#树的棵数
 MAX_DEPTH = 2
 LR = 0.3
-min_child_weight = 0 # 最小叶子节点占比权重
+min_child_weight = 1 # 最小叶子节点占比权重
 base_score = 0.5
+GAMMA = 0.05
 
 
 # 回归：G = ypred - y,H = 1
 # 分类：G = ypred - y,H = ypred * (1 - ypred)
 
 class XGBoostModel:
-    def __init__(self,target,n_estimators,lr,max_depth,min_child_weight,reg_lambda,reg_alpha,base_score):
+    def __init__(self,target,n_estimators,lr,max_depth,min_child_weight,reg_lambda,reg_alpha,base_score,gamma):
         '''
         :param target: reg if target is a regression else classify
         :param n_estimators: cart树的棵树
@@ -22,7 +23,8 @@ class XGBoostModel:
         :param max_depth: 树的最大深度
         :param min_child_weight: 最小叶子节点占比权重
         :param reg_lambda: l2正则
-        :param reg_alpha: l1正则
+        :param reg_alpha: l1正则 # 该代码还未实现
+        :param gamma: gamma参数
         '''
         self.target = target
         self.n_estimators = n_estimators
@@ -37,6 +39,7 @@ class XGBoostModel:
             self.base_score = base_score
         else:
             self.base_score = np.log(base_score / (1 - base_score))
+        self.gamma = gamma
 
     def calc_G(self,pred,y):
         return np.sum(pred - y)
@@ -61,7 +64,7 @@ class XGBoostModel:
     # 连续变量的切分点处理
     def continuity_params_process(arr,feat):
         c = arr[:,feat].astype(float)
-        c_sort = sorted(set(c))
+        c_sort = sorted(set(c),reverse=True)
         new_c = []
         for i in range(len(c_sort)-1):
             val = (c_sort[i] + c_sort[i+1]) / 2
@@ -89,7 +92,7 @@ class XGBoostModel:
             for val in c_set:
                 arr1,arr2,arr1_index,arr2_index = self.split_data(data,i,val,data_type)
                 gain, G_left, H_left, G_right, H_right = self.calc_gain(arr1,Y[arr1_index],arr2,Y[arr2_index])
-                if max_gain < gain and gain > 0 and self.min_child_weight <= min(H_left,H_right):
+                if (max_gain < gain) and (gain > 0) and (self.min_child_weight <= min(H_left,H_right)):
                     max_gain = gain
                     best_feat = i
                     best_val = val
@@ -107,23 +110,18 @@ class XGBoostModel:
             # h = len(data)
             h = self.calc_H(data[:,-1])
             return best_feat,best_val,left,right,left_y,right_y,g,h,g,h
-        self.gain_list.append({best_feat:max_gain})
+        self.gain_list.append({best_feat:max_gain+self.gamma})
         return best_feat,best_val,left,right,left_y,right_y,g_left,h_left,g_right,h_right
 
     def calc_gain(self,left,left_y,right,right_y):
-        # G_left = np.sum(left[:,-1] - left_y)
         G_left = self.calc_G(left[:,-1],left_y)
-        # H_left = len(left)
         H_left = self.calc_H(left[:,-1])
 
-        # G_right = np.sum(right[:,-1] - right_y)
         G_right = self.calc_G(right[:,-1],right_y)
-        # H_right = len(right)
         H_right = self.calc_H(right[:,-1])
 
-
         Gain = (G_left ** 2 / (H_left + self.reg_lambda) + G_right ** 2 / (H_right+self.reg_lambda) -
-                (G_left + G_right) ** 2/ (H_left + H_right + self.reg_lambda))/2 - self.reg_alpha
+                (G_left + G_right) ** 2/ (H_left + H_right + self.reg_lambda)) - self.gamma
         return Gain,G_left,H_left,G_right,H_right
 
     # 构建递归树
@@ -201,18 +199,18 @@ from xgboost.sklearn import XGBRegressor,XGBClassifier
 # 回归例子
 data = np.array([[5,20,1.1],
                  [7,30,1.3],
-                 [21,70,1.7],
+                 [21,55,1.7],
                  [30,60,1.8],
                  [26,40,1.6],
                  ])
 
 xgb = XGBRegressor(n_estimators=n_estimators,learning_rate=LR,max_depth=MAX_DEPTH,
-                   min_child_weight=min_child_weight,base_score=base_score)
+                   min_child_weight=min_child_weight,base_score=base_score,gamma=GAMMA)
 xgb.fit(data[:,:-1],data[:,-1])
 print("xgboost:",xgb.predict(data[0,:-1].reshape(1,-1)))
 
 my_xgb_tree = XGBoostModel(target='regression',n_estimators=n_estimators,lr=LR,max_depth=MAX_DEPTH,
-                                min_child_weight=min_child_weight,reg_lambda=1,reg_alpha=0,base_score=base_score)
+                                min_child_weight=min_child_weight,reg_lambda=1,reg_alpha=0,base_score=base_score,gamma=GAMMA)
 my_xgb_tree.fit(data)
 print("my xgb tree:",my_xgb_tree.predict(data[0,:-1]))
 
@@ -234,16 +232,16 @@ data = np.array([[1,-5,0],
 data = data.astype(float)
 
 xgb = XGBClassifier(n_estimators=n_estimators,learning_rate=LR,max_depth=MAX_DEPTH,
-                   min_child_weight=min_child_weight,base_score=base_score)
+                   min_child_weight=min_child_weight,base_score=base_score,gamma=GAMMA)
 xgb.fit(data[:,:-1],data[:,-1])
 print("xgboost:",xgb.predict_proba(data[0,:-1].reshape(1,-1)))
 
 my_xgb_tree = XGBoostModel(target='classify',n_estimators=n_estimators,lr=LR,max_depth=MAX_DEPTH,
-                                min_child_weight=min_child_weight,reg_lambda=1,reg_alpha=0,base_score=base_score)
+                                min_child_weight=min_child_weight,reg_lambda=1,reg_alpha=0,base_score=base_score,gamma=GAMMA)
 my_xgb_tree.fit(data)
 print("my xgb tree:",my_xgb_tree.predict(data[0,:-1]))
 
 print('xgboost feature importance',xgb.feature_importances_)
 print(my_xgb_tree.feat_importance())
-
+# print(data[0,:-1])
 
